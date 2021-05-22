@@ -16,6 +16,9 @@ loan_test <- testing(loan_split)
 
 loan_fold <- vfold_cv(loan_train, v = 10, repeats = 5, strata = hi_int_prncp_pd)
 
+# remove variables with too many categories
+# step other variables with a few important categories but many others
+# remove dummies that only have a few nonzero entries
 loan_recipe <- recipe(hi_int_prncp_pd ~ ., data = loan_train) %>%
   step_rm(sub_grade, id, emp_title) %>%
   step_date(earliest_cr_line, features = c("year")) %>%
@@ -36,11 +39,13 @@ skim_without_charts(
 
 save(loan_fold, loan_recipe, loan_split, loan_train, file = "data/temp_02/loan_setup.rda")
 
-
+# load models prepped for ensemble
 load(file = "data/temp_02/rf_tune.rda")
 load(file = "data/temp_02/nnet_tune.rda")
 load(file = "data/temp_02/mars_tune.rda")
 
+
+# perform standard ensemble procedures
 loan_data_stack <- stacks() %>%
   add_candidates(nnet_tune) %>%
   add_candidates(rf_tune) %>%
@@ -61,7 +66,7 @@ loan_model_stack <-
 autoplot(loan_model_stack, type = "weights") +
   theme_minimal()
 
-
+# identical cleaning to training
 testing <- read.csv(file = "data/test.csv") %>%
   mutate(
     initial_list_status = as.factor(initial_list_status),
@@ -80,6 +85,8 @@ testing <- read.csv(file = "data/test.csv") %>%
     emp_length = as.factor(emp_length)
   )
 
+# make purpose match purposes in training data
+# add last cred feb dummy
 valid_purpose <- c("credit_card", "debt_consolidation", "home_improvement")
 
 testing <- testing %>%
@@ -92,7 +99,9 @@ testing <- testing %>%
 
 final_predict <- loan_model_stack %>%
   predict(testing) %>%
-  rename(Id = .pred_class)
+  bind_cols(testing %>% select(id)) %>%
+  rename(Category = .pred_class) %>%
+  rename(Id = id)
 
 
-write.csv(final_predict, file = "data/temp_02/test_pred.csv")
+write.csv(final_predict, file = "data/temp_02/test_pred.csv", row.names = FALSE)

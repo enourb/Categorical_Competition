@@ -15,6 +15,9 @@ loan_test <- testing(loan_split)
 
 loan_fold <- vfold_cv(loan_train, v = 10, repeats = 5, strata = hi_int_prncp_pd)
 
+# remove variables with too many categories
+# step other variables with a few important categories but many others
+# remove dummies that only have a few nonzero entries
 loan_recipe <- recipe(hi_int_prncp_pd ~ ., data = loan_train) %>%
   step_rm(sub_grade, id, emp_title) %>%
   step_date(earliest_cr_line, features = c("year")) %>%
@@ -35,7 +38,7 @@ skim_without_charts(
 
 save(loan_fold, loan_recipe, loan_split, loan_train, file = "data/temp_01/loan_setup.rda")
 
-
+# load models
 load(file = "data/temp_01/rf_tune.rda")
 load(file = "data/temp_01/svm_radial_tune.rda")
 load(file = "data/temp_01/nnet_tune.rda")
@@ -96,6 +99,6 @@ final_predict <- predict(final_results, new_data = test) %>%
   bind_cols(test %>% select(id)) %>%
   rename(Category = .pred_class) %>%
   rename(Id = id) %>%
-  select(Category)
+  select(Id, Category)
 
-write.csv(final_predict, file = "data/temp_01/test_pred.csv")
+write.csv(final_predict, file = "data/temp_01/test_pred.csv", row.names = FALSE)
