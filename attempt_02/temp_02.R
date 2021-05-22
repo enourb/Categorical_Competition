@@ -101,7 +101,8 @@ final_predict <- loan_model_stack %>%
   predict(testing) %>%
   bind_cols(testing %>% select(id)) %>%
   rename(Category = .pred_class) %>%
-  rename(Id = id)
+  rename(Id = id) %>%
+  select(Id, Category)
 
 
 write.csv(final_predict, file = "data/temp_02/test_pred.csv", row.names = FALSE)
